@@ -1,0 +1,304 @@
+Here is what I did to get back to where I was before I lost everything: 
+Expand filesystem on the 16 g 95mb/s sdcard
+Set overclock to High 950MHz ARM, 250MHz core, 450MHz SDRAM, 6 overvolt
+Boot to command prompt [this is for the jvm to run optimally, but may change this to
+be able to run vnc. So this will be a later decision on how I will program the finch]
+Memory split is at 128mb
+
+
+Using command line tools (1) If you are comfortable with the command line, you can image a card without any additional software. Run:
+diskutil list
+identify the disk (not partition) of SD card. 
+diskutil unmountDisk /dev/ 
+sudo dd bs=1m if=< image file>.img of=/dev/ 
+Using a vga monitor so had to edit config.txt tohdmi_safe 
+On http://elinux.org/RPi_config.txt it is claimed to be the same as the combination of: 
+hdmi_force_hotplug=1 
+config_hdmi_boost=4 
+hdmi_group=2 
+hdmi_mode=4 
+disable_overscan=0 
+This is incorrect. When the values are entered instead of hdmi_safe it gives me a black screen with OS wheezy-raspbian.
+With hdmi_safe uncommented in /boot/config.txt there is picture. 
+Strangely the above configuration is for 640x480@60Hz, but it dosn't work. 
+For safe HDMI with my VGA monitors the following changes were made: 
+
+hdmi_group=1 hdmi_mode=1 
+This is also in agreement with the hdmi_mode definitions on the same webpage. 
+It has been tested with the following setup: 
+2 VGA monitors 800x600 and 1 VGA monitor 1024x768 
+DealExtreme 130458 HDMI V1.4 Male to VGA Female Converter Adapter Cable 
+There seem to be an issue with the video converter adapter not to accept higher 
+resolutions. Any ideas on how to tweak framebuffer_hight / framebuffer_width to get a 
+better resolution? 
+Using hdmi_safe should give you a forced hotplug and a resolution of 640x480. I found 
+that the group and mode commands did not work properly for me so I used the hotplug 
+and framebuffer commands instead. My resolution is set to 1366x768 to match my VGA 
+monitor. 
+
+fixed network card 
+installed vnc server 
+installed vnc viewer on mac [free java version] 
+made script to run vnc 
+made script to run vnc on startup: 
+[here is the path to put any start up programs or scripts] 
+Starting applications specified in /root/.vnc/xstartup 
+Log in to your Pi and install the Tight VNC Package 
+sudo apt-get install tightvncserver 
+tightvncserver [starts a session on VNC display zero (:0)] 
+didnâ€™t work 
+vncserver :0 â€“geometry 1920x1080 â€“depth 24 
+had to edit svnc.sh file [nano svnc.sh] 
+added this line: 
+#!/bin/sh vncserver :0 â€“geometry â€“depth 24 â€“dpi 96 
+Ctrl-x y (To Exit Nano and Save) 
+Set the file to Execute â€“ chmod +X svnc.sh 
+Ran it with ./svnc.sh 
+
+
+
+
+
+Run vnc at boot 
+Start a root session: 
+Sudo bash 
+
+
+
+
+Create a file in /etc/init.d with a name vncboot with the following content. 
+### BEGIN INIT INFO # Provides: vncboot # Required-Start: $remote_fs $syslog # 
+Required-Stop: $remote_fs $syslog # Default-Start: 2 3 4 5 # Default-Stop: 0 1 6 # 
+Short-Description: Start VNC Server at boot time # Description: Start VNC Server at 
+boot time. ### END INIT INFO #! /bin/sh # /etc/init.d/vncboot USER=root HOME=/root 
+export USER HOME case "$1" in start) echo "Starting VNC Server" #Insert your 
+favoured settings for a VNC session /usr/bin/vncserver :0 -geometry 1280x800 -depth 
+16 -pixelformat rgb565 ;; stop) echo "Stopping VNC Server" 
+/usr/bin/vncserver -kill :0 ;; *) echo "Usage: /etc/init.d/vncboot 
+{start|stop}" exit 1 ;; esac exit 0 
+Modify the file permissions so it can be executed: 
+Chmod 755 /etc/init.d/vncboot 
+Enable dependency based boot sequencing: 
+update-rc.d /etc/init.d/vncboot defaults 
+If enabling dependency based boot sequencing was successful, it says 
+It said: 
+Update-rc.d: error: unable to read /etc/init.d/ /etc/init.d/vncboot 
+then tried the following command: 
+update-rc.d vncboot defaults 
+Rebooted Raspberry PI and found a vncserver already started. 
+Install Tight VNC on your desktop from the link below or most VNC clients work I 
+believe. 
+http://www.tightvnc.com/download.php 
+to get current session: 
+You need to install x11vnc daemon on the linux distro with runs on Pi. Then run that command: 
+x11vnc -display :0 -usepw -noxdamage -ncache 10 -ncache_cr -listen IP_of_pi 
+-allow allowed_ip_address
+After ran the command, connect to pi with any VNC client.
+I had to run with only â€“display :0 to get the current session.
+
+
+
+pi camera
+Step by Step
+Step 01
+Attach Camera
+To attach the camera to the Raspberry Pi, locate the slot between the Ethernet and 
+HDMI port, and gently lift up the fastener. Insert the ribbon of the camera board, 
+making sure to align the ribbonâ€™s connectors with those on the Raspberry Pi.
+Step 02
+
+Pi Preparation
+Before we try and enable the Raspberry Pi camera, make sure your firmware and software 
+are all up-to-date with a quick software upgrade. In Raspbian, we do this by opening 
+the terminal and using:
+$ sudo apt-get update
+â€¦followed by:
+$ sudo apt-get upgrade
+Step 03
+Pi Config
+Once thatâ€™s finished, run in the terminal or command line:
+$ sudo raspi-config
+â€¦to start the standard configuration screen. Navigate down to Enable Camera, press 
+Enter, and then simply key over to enable and confirm with another press of Enter. 
+Select Finish, and reboot.
+Step 04
+Take Pictures
+To take pictures with the Raspberry Pi Camera, youâ€™ll simply need to enter:
+$ raspistill -o image.png
+This will show a five second preview of the input of the camera, and then capture the 
+last frame of the video
+Step 05
+Record Video
+To record a video, we use a similar command, raspivid, like so:
+Raspivid â€“o video.h264
+With my implementation and being so late in the game and partly because robot was 
+stolen I am going to use the Mac and mplayer to stream video which allowed me to get 
+20 ms lag.
+
+
+The trick: send out less frames from the Pi than you read on the remote side, this 
+makes sure the buffer stays empty.
+First on the laptop (Mac):
+nc -l 5001 | mplayer -fps 24 -cache 1024 - 
+then on the RPI start streaming:
+raspivid -t 999999 -w 1280 -h 720 -fps 20 -o - | nc 192.168.1.100 5001 192 
+Made sure to:
+Install mplayer first. Only the Homebrew method worked for me. The regular 
+download was broken.
+Change the ip number above to the number of your laptop. The ip address 
+changed due to dhcp
+
+
+
+Lets Install java
+First :
+http://sourceforge.net/projects/fugussh/?source=dlp
+to drag and drop the jdk
+
+
+link takes you to You can run JavaFX on the Raspberry 
+
+https://wiki.openjdk.java.net/display/OpenJFX/OpenJFX+on+the+Raspberry+Pi
+
+
+connecting to Pi over the network, saving some time by setting a host name for it in 
+raspi-config, then installing the avahi-daemon package (sudo apt-get install 
+avahi-daemon from the command line). Able to reach the Pi from a Linux PC with the
+command: ssh pi@.local
+
+Download 
+Linux ARMv6/7 VFP,
+HardFP ABI 32-bit tar.gz( md5 ) 
+83.50 MB
+Used fugu to push it over to the pi
+Ya for gui:
+unpacked on pi
+tar zxvf jdk.gz -C /opt
+
+check for java:
+/opt/jdk1.8.0_20/bin/java -version
+java version "1.8.0_20-ea"
+Java(TM) SE Runtime Environment (build 1.8.0_20-ea-b05)
+Java HotSpot(TM) Client VM (build 25.20-b05, mixed mode)
+
+
+Lets compile some sample code This should show that you are running an EA build of 
+JDK 8. If the VM won't even start, you might be running a hard-float VM on a 
+soft-float system.
+Lets set the path to the java compiler and jvm
+nano ~/.bashrc
+JAVA_HOME=/opt/jdk1.8.0_20
+export JAVA_HOME
+
+
+PATH=$JAVA_HOME/bin:$PATH
+export PATH
+
+[ I remember looking at that in 205 when walshe told the class to set the path and not 
+know what the heck I was doing or why or how]
+
+unzip the java samples and run one to see it go full screen
+
+got locked out of the oracle site ?????
+
+anyways move on to birdbrain â€“ here are their instructions via 
+http://www.finchrobot.com/raspberry-pi
+
+â€¢ On your host computer, download and unzip the BirdBrain Technologies Software 
+for the Raspberry Pi.
+â€¢ Copy the folder BBTechSoftwareForPi to your Raspberry Pi's home directory 
+(seescreenshot for detail).
+â€¢ Using a terminal, change directory to ~/BBTechSoftwareForPi
+â€¢ Make the Configure script executable and then run it with sudo ("chmod +x 
+Configure" followed by "sudo ./Configure"). You should see the following output:
+
+
+Compiling and Running Java Programs for Finch
+To compile a Java program for Finch, first navigate to the FinchJava directory, and 
+then type javac -classpath :finch.jar FILEPATH
+For example, if you wish to compile FinchOrientations.java, which is located in 
+Code/looping, you would use: 
+To run a Java program for Finch, type java -classpath finch.jar: FILEPATH
+For example, if you wish to run FinchOrientations, you would use:
+
+will mess around with compiling java code later and do it through the vnc but for now 
+lets check out snap and see if I can get it to work
+
+Step 1: Start the server on the Raspberry Pi. Navigate to the FinchServer directory in 
+BBTechSoftwareforPi folder and type "java -jar FinchServer.jar. Assuming a Finch is 
+plugged in, you should see the following:
+
+Step 2: Navigate to http://snap.berkeley.edu/snapsource/snap.html on a computer 
+connected to the same local network as the Raspberry Pi. 
+Step 3: Import the FinchSnapBlocks.xml file by dragging it from a file browser onto 
+the Snap! webpage, or by clicking the file icon and selecting Import...
+Step 4: Change the IP Address variable to the IP Address of the Raspberry Pi using the 
+provided "set" block:
+root@raspberrypi:/home/pi/BBTechSoftwareForPi/FinchServer# java -jar FinchServer.jar 
+Connecting to Finch...this may take a few seconds...
+Finch server started!
+A Finch was found!
+2014-04-12 01:56:45.368:INFO:oejs.Server:jetty-8.y.z-SNAPSHOT
+2014-04-12 01:56:48.635:INFO:oejs.AbstractConnector:Started 
+SelectChannelConnector@0.0.0.0:22180
+The IP address of this device is /192.168.1.101 - ignore the leading /
+Press ENTER to quit.
+
+
+Ok here we go lets put it all together:
+
+x11vnc -display :0
+tightvnc-jviewer
+remember to use x11vnc with now parameters
+and x window has to be running first
+I forgot I ran raspi-config and booted to a command prompt
+Ran raspi-config and fixed that
+Lets try again
+Interesting note that vncserver :1 still worked but blank desktop and I donâ€™t know 
+how to run terminal from there
+
+
+Not working but can run terminal from display:1 by right clicking now â€¦ somehow
+What happened to display :0?
+
+From terminal on the pi after x11vnc â€“display :0:
+The VNC desktop is: raspberrypi:0
+PORT=5900
+
+But did not connect
+Maybe kill display :1 first
+
+
+Have to deal with mac keyboard sending weird ascii while running terminal in vnc
+
+
+Run finchserver.jar 
+On the mac start mplayer
+Start streaming
+
+Fuguâ€™d the xml file over
+
+http://snap.berkeley.edu/snapsource/snap.html
+
+Had to kill mplayer to get page to load
+
+Maybe smaller screen 
+
+Rebooted and ran x11vnc display :1 and It worked on port 5900
+
+Not communicating with finch â€“ lights are on, no one is home
+
+I noticed that:
+
+1. The robot is damaged after being stolen and spending some time on the streets. 
+It has a missing tire and other slight damage but my concern is with the usb port. I 
+bought another robot but would love to return it [the company said to send it back]. I 
+will do some more testing soon
+2. The component the Adam in the mjc magic lab pushes on the usb cord and port if 
+I donâ€™t pay attention while adjusting the pi and/or camera
+
+
+
+Enough for now. Need to plan and design how I want the finished product to look.
+[note I did fix the communication problem and will compile some code prior to class 
+tonight]
